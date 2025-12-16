@@ -1,0 +1,17 @@
+# Logs
+logs/
+*.log
+
+# Binary files
+*.bin
+
+# Resource folder
+Resource/
+
+# Office Macro files
+*.docm
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
