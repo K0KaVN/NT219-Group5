@@ -1,4 +1,4 @@
-# NT230 - Malware Mechanism Analysis - Macro Stomping Project
+# NT230 - GROUP5 - Macro Malware
 
 ## Overview
 This project investigates the **VBA Macro Stomping** technique, a sophisticated method used by malware authors to evade detection. Macro Stomping involves modifying the compiled P-code of a VBA macro while leaving the source code intact (or replacing it with benign code). This discrepancy allows malicious code to execute in Office applications while security tools analyzing only the source code see nothing suspicious.
