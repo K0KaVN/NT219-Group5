@@ -51,6 +51,7 @@ nt230-marco-malware/
 *   [EvilClippy by outflanknl](https://github.com/outflanknl/EvilClippy)
 *   [VBA Stomping - The Art of Deception](https://vbastomp.com/)
 *   [PCodedmp](https://github.com/bontchev/pcodedmp)
+*   [oletools](https://github.com/decalage2/oletools)
 
 ## Authors
 *   GROUP05:
