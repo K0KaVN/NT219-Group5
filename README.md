@@ -43,7 +43,6 @@ nt230-marco-malware/
 │   │   ├── stomping_detector.py # Detection orchestration
 │   │   └── report_generator.py  # Reporting engine
 │   └── reports/                 # Output scan reports
-├── Resource/                    # External resources (e.g., EvilClippy)
 ├── requirements.txt             # Python dependencies
 └── README.md                    # Project documentation
 ```
